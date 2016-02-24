@@ -46,6 +46,14 @@ Sanitized-Params is for checking required keys and filtering invalid key-values 
  '(("name" . "Eitaro Fukamachi") ("address" . "Japan")))
 ;-> ERROR: Unpermitted keys: "address
 
+;; Permits only initargs of a class
+(defclass person () ((name :initarg :name) (email :initarg :email)))
+
+(sanitize
+ (alist (permits (initargs-of 'person)))
+ '(("name" . "Eitaro Fukamachi")))
+;=> (("name" . "Eitaro Fukamachi"))
+
 ;; Nested rule
 (sanitize
  (alist
