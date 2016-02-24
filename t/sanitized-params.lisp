@@ -7,21 +7,6 @@
 
 (plan 8)
 
-(defmacro is-check (pred-fn params new-params)
-  `(is-values (funcall ,pred-fn ,params)
-              (list t ,new-params)
-              (format nil "~S =>~A=> ~S"
-                      ,params
-                      ,(prin1-to-string pred-fn)
-                      ,new-params)))
-
-(defmacro isnt-check (pred-fn params)
-  `(is-values (funcall ,pred-fn ,params)
-              (list nil nil)
-              (format nil "~S isn't ~A"
-                      ,params
-                      ,(prin1-to-string pred-fn))))
-
 (subtest "list-of"
   (let ((pattern (list-of #'integerp)))
     (is-values (funcall pattern 1)
@@ -65,16 +50,7 @@
     (is-values (funcall pattern '())
                '(t ()))
     (is-error (funcall pattern '(("name" . "Eitaro")))
-              'unpermitted-keys))
-  ;; (is-check (alist (requires "name"))
-  ;;           '(("name" . "Eitaro")) '(("name" . "Eitaro")))
-  ;; (is-check (alist (requires "name"))
-  ;;           '(("name" . "Eitaro") ("address" . "Japan")) '(("name" . "Eitaro")))
-  ;; (isnt-check (alist (requires "name"))
-  ;;             '(("address" . "Japan")))
-  ;; (isnt-check (alist (requires "name")) '())
-  ;; (isnt-check (alist (requires "name")) 1)
-  )
+              'unpermitted-keys)))
 
 (subtest "alist (no preds)"
   (is-values (funcall (alist) '(("address" . "Japan")))
