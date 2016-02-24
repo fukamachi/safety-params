@@ -19,7 +19,8 @@
   :depends-on ()
   :components ((:module "src"
                 :components
-                ((:file "sanitized-params"))))
+                ((:file "sanitized-params" :depends-on ("error"))
+                 (:file "error"))))
   :description "Sanitizer for parameters"
   :long-description
   #.(with-open-file (stream (merge-pathnames

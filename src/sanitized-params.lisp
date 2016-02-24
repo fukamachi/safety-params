@@ -1,6 +1,7 @@
 (in-package :cl-user)
 (defpackage sanitized-params
-  (:use :cl)
+  (:use #:cl
+        #:sanitized-params.error)
   (:export #:alist
            #:requires
            #:permits
@@ -15,20 +16,6 @@
 (in-package :sanitized-params)
 
 (defparameter *raise-unpermitted-keys* t)
-
-(define-condition validation-error (error) ())
-
-(define-condition missing-required-keys (validation-error)
-  ((keys :initarg :keys))
-  (:report (lambda (condition stream)
-             (format stream "Required keys are missing: ~{~S~^, ~}"
-                     (slot-value condition 'keys)))))
-
-(define-condition unpermitted-keys (validation-error)
-  ((keys :initarg :keys))
-  (:report (lambda (condition stream)
-             (format stream "Unpermitted keys: ~{~S~^, ~}"
-                     (slot-value condition 'keys)))))
 
 (defun aget (params key)
   (assoc key params :test #'string=))
