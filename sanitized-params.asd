@@ -16,7 +16,8 @@
   :version "0.1"
   :author "Eitaro Fukamachi"
   :license "BSD 2-Clause"
-  :depends-on ()
+  :depends-on (:closer-mop
+               :alexandria)
   :components ((:module "src"
                 :components
                 ((:file "sanitized-params" :depends-on ("error"))

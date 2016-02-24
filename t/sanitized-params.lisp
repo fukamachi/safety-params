@@ -5,7 +5,7 @@
         :prove))
 (in-package :sanitized-params-test)
 
-(plan 7)
+(plan 8)
 
 (defmacro is-check (pred-fn params new-params)
   `(is-values (funcall ,pred-fn ,params)
@@ -130,5 +130,14 @@
         ("email" "e.arrows@gmail.com" "another@gmail.com")
         ("friends"
          (("name" . "Masatoshi Sano") ("family") ("hobbies" "rocket" "lisp"))))))
+
+(subtest "initargs-of"
+  (defclass person ()
+    ((name :initarg :name)
+     (email :initarg :email)))
+
+  (is-error (initargs-of 1) 'error)
+  (is-error (initargs-of 'integer) 'error)
+  (is (initargs-of 'person) '("name" "email")))
 
 (finalize)
