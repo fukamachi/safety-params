@@ -31,9 +31,7 @@
                      (slot-value condition 'keys)))))
 
 (defun aget (params key)
-  (handler-case
-      (assoc key params :test #'string=)
-    (type-error () nil)))
+  (assoc key params :test #'string=))
 
 (defun list-of (pred)
   (lambda (params)
