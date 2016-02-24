@@ -113,7 +113,9 @@
                             (funcall pred (cdr kv)))))
                       t)))
            (if (and (listp ,params)
-                    (every #'consp ,params)
+                    (handler-case
+                        (every #'consp ,params)
+                      (type-error () nil))
                     ,@(loop for pred in preds
                             collect `(funcall ,pred ,params)))
                (progn
