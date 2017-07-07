@@ -17,6 +17,7 @@
 
            #:validation-error
            #:missing-required-keys
+           #:not-satisfied-key
            #:unpermitted-keys))
 (in-package :sanitized-params)
 
@@ -101,13 +102,14 @@
                       (when-let (kv (aget ,params key))
                         (multiple-value-call
                             (lambda (ok &optional (res nil res-got-p))
-                              ;; Just ignore the key if it does not satisfy.
                               (if ok
                                   (progn
                                     (when res-got-p
                                       (rplacd kv res))
                                     (collect key))
-                                  (setf ,params (remove-from-alist ,params key))))
+                                  (error 'not-satisfied-key
+                                         :key key
+                                         :pred pred)))
                           (funcall pred (cdr kv))))
                       t)))
            (if (and (listp ,params)

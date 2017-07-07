@@ -80,8 +80,8 @@
                '(t (("email"))))
     (is-values (funcall pattern '(("name" . "Eitaro")))
                '(t (("name" . "Eitaro"))))
-    (is-values (funcall pattern '(("email" . "e.arrows@gmail.com")))
-               '(t nil))
+    (is-error (funcall pattern '(("email" . "e.arrows@gmail.com")))
+              'not-satisfied-key)
     (is-values (funcall pattern '(("name" . "Eitaro") ("email" . ("e.arrows@gmail.com" "another@gmail.com"))))
                '(t (("email" . ("e.arrows@gmail.com" "another@gmail.com")) ("name" . "Eitaro"))))))
 
