@@ -5,7 +5,7 @@
         :prove))
 (in-package :sanitized-params-test)
 
-(plan 8)
+(plan 9)
 
 (subtest "list-of"
   (let ((pattern (list-of #'integerp)))
@@ -76,6 +76,17 @@
 
 (subtest "alist (satisfies)"
   (let ((pattern (alist (satisfies "email" #'listp))))
+    (is-values (funcall pattern '(("email")))
+               '(t (("email"))))
+    (is-values (funcall pattern '(("name" . "Eitaro")))
+               '(t (("name" . "Eitaro"))))
+    (is-values (funcall pattern '(("email" . "e.arrows@gmail.com")))
+              '(t nil))
+    (is-values (funcall pattern '(("name" . "Eitaro") ("email" . ("e.arrows@gmail.com" "another@gmail.com"))))
+               '(t (("email" . ("e.arrows@gmail.com" "another@gmail.com")) ("name" . "Eitaro"))))))
+
+(subtest "alist (satisfies!)"
+  (let ((pattern (alist (satisfies! "email" #'listp))))
     (is-values (funcall pattern '(("email")))
                '(t (("email"))))
     (is-values (funcall pattern '(("name" . "Eitaro")))

@@ -10,6 +10,7 @@
            #:requires
            #:permits
            #:satisfies
+           #:satisfies!
            #:list-of
            #:initargs-of
 
@@ -95,6 +96,23 @@
                             do (collect key))
                       t))
                   (satisfies (key pred)
+                    #+sbcl (declare (sb-ext:muffle-conditions sb-ext:code-deletion-note))
+                    (lambda (&rest args)
+                      (declare (ignore args))
+                      ;; Ignore the 'satisfies' rule if the key doesn't exist
+                      (when-let (kv (aget ,params key))
+                        (multiple-value-call
+                            (lambda (ok &optional (res nil res-got-p))
+                              ;; Just ignore the key if it does not satisfy.
+                              (if ok
+                                  (progn
+                                    (when res-got-p
+                                      (rplacd kv res))
+                                    (collect key))
+                                  (setf ,params (remove-from-alist ,params key))))
+                          (funcall pred (cdr kv))))
+                      t))
+                  (satisfies! (key pred)
                     #+sbcl (declare (sb-ext:muffle-conditions sb-ext:code-deletion-note))
                     (lambda (&rest args)
                       (declare (ignore args))
