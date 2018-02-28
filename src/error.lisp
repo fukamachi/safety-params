@@ -22,13 +22,13 @@
                 :initform '()
                 :accessor unpermitted-keys)))
 
-(define-condition missing-required-keys (error)
+(define-condition missing-required-keys ()
   ((keys :initarg :keys))
   (:report (lambda (condition stream)
              (format stream "Required keys are missing: ~{~S~^, ~}"
                      (slot-value condition 'keys)))))
 
-(define-condition not-satisfied-key (error)
+(define-condition not-satisfied-key ()
   ((key :initarg :key)
    (pred :initarg :pred))
   (:report (lambda (condition stream)
@@ -36,7 +36,7 @@
                (format stream "Key '~A' doesn't satisfy ~A"
                        key pred)))))
 
-(define-condition unpermitted-keys (error)
+(define-condition unpermitted-keys ()
   ((keys :initarg :keys))
   (:report (lambda (condition stream)
              (format stream "Unpermitted keys: ~{~S~^, ~}"

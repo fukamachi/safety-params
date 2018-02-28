@@ -64,10 +64,14 @@
 
 (subtest "alist (requires)"
   (let ((pattern (alist (requires "name"))))
-    (handler-case (funcall pattern '())
+    (handler-case (progn
+                    (funcall pattern '())
+                    (fail "Expected to raise VALIDATION-ERROR"))
       (validation-error (e)
         (is (missing-keys e) '("name"))))
-    (handler-case (funcall pattern '(("address" . "Japan")))
+    (handler-case (progn
+                    (funcall pattern '(("address" . "Japan")))
+                    (fail "Expected to raise VALIDATION-ERROR"))
       (validation-error (e)
         (is (missing-keys e) '("name"))))
     (is-values (funcall pattern '(("name" . "Eitaro")))
@@ -93,7 +97,9 @@
                '(t (("email"))))
     (is-values (funcall pattern '(("name" . "Eitaro")))
                '(t (("name" . "Eitaro"))))
-    (handler-case (funcall pattern '(("email" . "e.arrows@gmail.com")))
+    (handler-case (progn
+                    (funcall pattern '(("email" . "e.arrows@gmail.com")))
+                    (fail "Expected to raise VALIDATION-ERROR"))
       (validation-error (e)
         (is (invalid-keys e) '("email"))))
     (is-values (funcall pattern '(("name" . "Eitaro") ("email" . ("e.arrows@gmail.com" "another@gmail.com"))))
