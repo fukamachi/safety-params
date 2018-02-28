@@ -64,7 +64,8 @@
                       (unpermitted-keys
                         (lambda (c)
                           (setf ,unpermitted
-                                (nconc ,unpermitted (slot-value c 'keys))))))
+                                (nconc ,unpermitted (slot-value c 'keys)))
+                          (condition-continue c))))
          (multiple-value-prog1 (progn ,@body)
            (when (or ,missing ,invalid ,unpermitted)
              (error 'validation-error
