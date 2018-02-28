@@ -17,6 +17,9 @@
            #:sanitize
 
            #:validation-error
+           #:missing-keys
+           #:invalid-keys
+           #:unpermitted-keys
            #:missing-required-keys
            #:not-satisfied-key
            #:unpermitted-keys))
@@ -83,8 +86,9 @@
                               (aget ,new-params key)
                               (push key missing-keys)))
                         (when missing-keys
-                          (error 'missing-required-keys
-                                 :keys missing-keys)))
+                          (cerror "Continue"
+                                  'missing-required-keys
+                                  :keys missing-keys)))
                       t))
                   (permits (&rest keys)
                     (setf keys (flatten keys))
@@ -125,25 +129,27 @@
                                     (when res-got-p
                                       (rplacd kv res))
                                     (collect key))
-                                  (error 'not-satisfied-key
-                                         :key key
-                                         :pred pred)))
+                                  (cerror "Continue"
+                                          'not-satisfied-key
+                                          :key key
+                                          :pred pred)))
                           (funcall pred (cdr kv))))
                       t)))
-           (if (and (listp ,params)
-                    (handler-case
-                        (every #'consp ,params)
-                      (type-error () nil))
-                    ,@(loop for pred in preds
-                            collect `(funcall ,pred ,params)))
-               (progn
-                 (setf ,new-params (nreverse ,new-params))
-                 (if ,permits-all
-                     (setf ,new-params (nconc ,new-params ,params))
-                     (when ,params
-                       (error 'unpermitted-keys :keys (mapcar #'car ,params))))
-                 (values t ,new-params))
-               (values nil nil)))))))
+           (with-validation
+             (if (and (listp ,params)
+                      (handler-case
+                          (every #'consp ,params)
+                        (type-error () nil))
+                      ,@(loop for pred in preds
+                              collect `(funcall ,pred ,params)))
+                 (progn
+                   (setf ,new-params (nreverse ,new-params))
+                   (if ,permits-all
+                       (setf ,new-params (nconc ,new-params ,params))
+                       (when ,params
+                         (cerror "Continue" 'unpermitted-keys :keys (mapcar #'car ,params))))
+                   (values t ,new-params))
+                 (values nil nil))))))))
 
 (defun sanitize (pattern params)
   (multiple-value-call

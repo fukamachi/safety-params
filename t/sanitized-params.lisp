@@ -64,10 +64,12 @@
 
 (subtest "alist (requires)"
   (let ((pattern (alist (requires "name"))))
-    (is-error (funcall pattern '())
-              'missing-required-keys)
-    (is-error (funcall pattern '(("address" . "Japan")))
-              'missing-required-keys)
+    (handler-case (funcall pattern '())
+      (validation-error (e)
+        (is (missing-keys e) '("name"))))
+    (handler-case (funcall pattern '(("address" . "Japan")))
+      (validation-error (e)
+        (is (missing-keys e) '("name"))))
     (is-values (funcall pattern '(("name" . "Eitaro")))
                '(t (("name" . "Eitaro"))))
     (is-values (funcall pattern '(("name" . "Eitaro") ("address" . "Japan")))
@@ -91,8 +93,9 @@
                '(t (("email"))))
     (is-values (funcall pattern '(("name" . "Eitaro")))
                '(t (("name" . "Eitaro"))))
-    (is-error (funcall pattern '(("email" . "e.arrows@gmail.com")))
-              'not-satisfied-key)
+    (handler-case (funcall pattern '(("email" . "e.arrows@gmail.com")))
+      (validation-error (e)
+        (is (invalid-keys e) '("email"))))
     (is-values (funcall pattern '(("name" . "Eitaro") ("email" . ("e.arrows@gmail.com" "another@gmail.com"))))
                '(t (("email" . ("e.arrows@gmail.com" "another@gmail.com")) ("name" . "Eitaro"))))))
 
