@@ -1,6 +1,12 @@
 language: common-lisp
 sudo: false
 
+addons:
+  apt:
+    packages:
+      - libc6-i386
+      - openjdk-7-jre
+
 env:
   global:
     - PATH=$HOME/.roswell/bin:$PATH
