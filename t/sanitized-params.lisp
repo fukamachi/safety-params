@@ -38,10 +38,16 @@
 
 (subtest "alist (permits)"
   (let ((pattern (alist (permits "name"))))
-    (is-error (funcall pattern '(("address" . "Japan")))
-              'unpermitted-keys)
-    (is-error (funcall pattern '(("name" . "Eitaro") ("address" . "Japan")))
-              'unpermitted-keys)
+    (handler-case (progn
+                    (funcall pattern '(("address" . "Japan")))
+                    (fail "Expected to raise VALIDATION-ERROR"))
+      (validation-error (e)
+        (is (unpermitted-keys e) '("address"))))
+    (handler-case (progn
+                    (funcall pattern '(("name" . "Eitaro") ("address" . "Japan")))
+                    (fail "Expected to raise VALIDATION-ERROR"))
+      (validation-error (e)
+        (is (unpermitted-keys e) '("address"))))
     (is-values (funcall pattern '(("name")))
                '(t (("name"))))
     (is-values (funcall pattern '())
@@ -49,8 +55,11 @@
   (let ((pattern (alist (permits))))
     (is-values (funcall pattern '())
                '(t ()))
-    (is-error (funcall pattern '(("name" . "Eitaro")))
-              'unpermitted-keys)))
+    (handler-case (progn
+                    (funcall pattern '(("name" . "Eitaro")))
+                    (fail "Expected to raise VALIDATION-ERROR"))
+      (validation-error (e)
+        (is (unpermitted-keys e) '("name"))))))
 
 (subtest "alist (no preds)"
   (is-values (funcall (alist) '(("address" . "Japan")))
