@@ -24,7 +24,7 @@ env:
 install:
   # Install Roswell
   - curl -L https://raw.githubusercontent.com/snmsts/roswell/release/scripts/install-for-ci.sh | sh
-  - ros install prove
+  - ros install rove
 
 cache:
   directories:
@@ -32,4 +32,4 @@ cache:
     - $HOME/.config/common-lisp
 
 script:
-  - run-prove sanitized-params-test.asd
+  - rove sanitized-params.asd
