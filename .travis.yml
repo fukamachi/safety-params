@@ -36,4 +36,4 @@ cache:
     - $HOME/.config/common-lisp
 
 script:
-  - rove sanitized-params.asd
+  - rove safety-params.asd
