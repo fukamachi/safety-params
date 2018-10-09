@@ -1,53 +1,54 @@
-(defpackage #:sanitized-params/tests/main
+(defpackage #:safety-params/tests/main
   (:use #:cl
-        #:sanitized-params
+        #:safety-params
         #:rove))
-(in-package #:sanitized-params/tests/main)
+(in-package #:safety-params/tests/main)
 
-(deftest list-of-testing
-  (testing "list-of"
-    (let ((pattern (list-of #'integerp)))
-      (ok (equalp (multiple-value-list (funcall pattern 1))
-                  '(nil nil))
-          "non list value for list-of")
-      (ok (equalp (multiple-value-list (funcall pattern '()))
-                  '(t nil))
-          "nil for list-of")
-      (ok (equalp (multiple-value-list (funcall pattern (cons 1 2)))
-                  '(nil nil))
-          "Can handle TYPE-ERROR")
-      (ok (equalp (multiple-value-list (funcall pattern '(nil)))
-                  '(t nil))
-          "Returns T even if no values are matched")
-      (ok (equalp (multiple-value-list (funcall pattern '(1 nil 2 "a" 3)))
-                  '(t (1 2 3)))
-          "Can only collect integers"))))
+(deftest converts-into-tests
+  (testing "string"
+    (ok (= (converts-into "10" 'integer) 10))))
 
-(deftest alist-permits-testing
-  (testing "alist (check invalid values)"
+(deftest list-of-tests
+  (testing "list-of normal functions"
+    (ok (signals (funcall (list-of #'integerp) 1)
+                 'assertion-failed))
+    (ok (equalp (multiple-value-list (funcall (list-of #'integerp) '()))
+                '(t nil)))
+    (ok (signals (funcall (list-of #'integerp) (cons 1 2))
+                 'assertion-failed))
+    (ok (equalp (multiple-value-list (funcall (list-of #'integerp)
+                                              '(1 2 3)))
+                '(t (1 2 3))))
+    (ok (signals (funcall (list-of #'integerp)
+                          '(1 2 "10" 3))
+                 'assertion-failed))
+    (ok (equalp (multiple-value-list (funcall (list-of (being integer))
+                                              '(1 2 "10" 3)))
+                '(t (1 2 10 3))))
+    (ok (signals (funcall (list-of (being integer))
+                          '(1 2 "a" 3))
+                 'conversion-failed))))
+
+(deftest alist-tests
+  (testing "permits (invalid input)"
     (let ((pattern (alist (permits "name"))))
-      (ok (equalp (multiple-value-list (funcall pattern 1))
-                  '(nil nil)))
+      (ok (signals (funcall pattern '(("address" . "Japan")))
+                   'validation-error))
       (ok (equalp (multiple-value-list (funcall pattern '()))
-                  '(t nil)))
-      (ok (equalp (multiple-value-list (funcall pattern '(1)))
-                  '(nil nil)))
-      (ok (equalp (multiple-value-list (funcall pattern (cons 1 2)))
-                  '(nil nil)))))
+                  '(t ())))
+      (ok (signals (funcall pattern '(1))
+                   'assertion-failed))
+      (ok (signals (funcall pattern (cons 1 2))
+                   'assertion-failed))))
 
-  (testing "alist (permits)"
+  (testing "permits"
     (let ((pattern (alist (permits "name"))))
       (handler-case (progn
                       (funcall pattern '(("address" . "Japan")))
                       (fail "Expected to raise VALIDATION-ERROR"))
         (validation-error (e)
           (ok (equalp (unpermitted-keys e) '("address")))))
-      (handler-case (progn
-                      (funcall pattern '(("name" . "Eitaro") ("address" . "Japan")))
-                      (fail "Expected to raise VALIDATION-ERROR"))
-        (validation-error (e)
-          (ok (equalp (unpermitted-keys e) '("address")))))
-      (ok (equalp (multiple-value-list (funcall pattern '(("name"))))
+      (ok (equalp (multiple-value-list (funcall pattern '(("name" . nil))))
                   '(t (("name")))))
       (ok (equalp (multiple-value-list (funcall pattern '()))
                   '(t ()))))
@@ -58,21 +59,19 @@
                       (funcall pattern '(("name" . "Eitaro")))
                       (fail "Expected to raise VALIDATION-ERROR"))
         (validation-error (e)
-          (ok (equalp (unpermitted-keys e) '("name"))))))))
+          (ok (equalp (unpermitted-keys e) '("name")))))))
 
-(deftest alist-no-preds-testing
-  (testing "alist (no preds)"
+  (testing "no preds"
     (ok (equalp (multiple-value-list (funcall (alist) '(("address" . "Japan"))))
                 '(t (("address" . "Japan")))))
     (ok (equalp (multiple-value-list (funcall (alist) ()))
                 '(t ())))
-    (ok (equalp (multiple-value-list (funcall (alist) 1))
-                '(nil nil)))
-    (ok (equalp (multiple-value-list (funcall (alist) '(1)))
-                '(nil nil)))))
+    (ok (signals (funcall (alist) 1)
+                 'assertion-failed))
+    (ok (signals (funcall (alist) '(1))
+                 'assertion-failed)))
 
-(deftest alist-requires-testing
-  (testing "alist (requires)"
+  (testing "requires"
     (let ((pattern (alist (requires "name"))))
       (handler-case (progn
                       (funcall pattern '())
@@ -84,68 +83,45 @@
                       (fail "Expected to raise VALIDATION-ERROR"))
         (validation-error (e)
           (ok (equalp (missing-keys e) '("name")))))
-      (ok (equalp (multiple-value-list (funcall pattern '(("name" . "Eitaro"))))
-                  '(t (("name" . "Eitaro")))))
-      (ok (equalp (multiple-value-list (funcall pattern '(("name" . "Eitaro") ("address" . "Japan"))))
-                  '(t (("name" . "Eitaro") ("address" . "Japan"))))
-          "Permits all other keys"))))
+      (ok (equalp
+           (multiple-value-list
+            (funcall pattern '(("name" . "Eitaro")
+                               ("address" . "Japan"))))
+           '(t (("name" . "Eitaro") ("address" . "Japan")))))))
 
-(deftest alist-satisfies-testing
-  (testing "alist (satisfies)"
+  (testing "satisfies"
     (let ((pattern (alist (satisfies "email" #'listp))))
       (ok (equalp (multiple-value-list (funcall pattern '(("email"))))
                   '(t (("email")))))
       (ok (equalp (multiple-value-list (funcall pattern '(("name" . "Eitaro"))))
                   '(t (("name" . "Eitaro")))))
-      (ok (equalp (multiple-value-list (funcall pattern '(("email" . "e.arrows@gmail.com"))))
-                  '(t nil)))
-      (ok (equalp (multiple-value-list (funcall pattern '(("name" . "Eitaro") ("email" . ("e.arrows@gmail.com" "another@gmail.com")))))
-                  '(t (("email" . ("e.arrows@gmail.com" "another@gmail.com")) ("name" . "Eitaro"))))))))
+      (ok (signals (funcall pattern '(("email" . "e.arrows@gmail.com")))
+                   'validation-error))
+      (ok (equalp (multiple-value-list
+                   (funcall pattern '(("name" . "Eitaro")
+                                      ("email" . ("e.arrows@gmail.com" "another@gmail.com")))))
+                  '(t (("name" . "Eitaro")
+                       ("email" . ("e.arrows@gmail.com" "another@gmail.com"))))))))
 
-(deftest alist-satisfies!-testing
-  (testing "alist (satisfies!)"
-    (let ((pattern (alist (satisfies! "email" #'listp))))
-      (ok (equalp (multiple-value-list (funcall pattern '(("email"))))
-                  '(t (("email")))))
-      (ok (equalp (multiple-value-list (funcall pattern '(("name" . "Eitaro"))))
-                  '(t (("name" . "Eitaro")))))
-      (handler-case (progn
-                      (funcall pattern '(("email" . "e.arrows@gmail.com")))
-                      (fail "Expected to raise VALIDATION-ERROR"))
-        (validation-error (e)
-          (ok (equalp (invalid-keys e) '("email")))))
-      (ok (equalp (multiple-value-list (funcall pattern '(("name" . "Eitaro") ("email" . ("e.arrows@gmail.com" "another@gmail.com")))))
-                  '(t (("email" . ("e.arrows@gmail.com" "another@gmail.com")) ("name" . "Eitaro"))))))))
-
-(deftest complicated-example
   (testing "complicated example"
-    (ok (equalp (sanitize
-                 (alist
-                  (requires "name")
-                  (satisfies "email" #'listp)
-                  (satisfies "friends"
-                             (list-of
-                              (alist
-                               (requires "name")
-                               (satisfies "family" (list-of
-                                                    (alist (permits "name"))))
-                               (satisfies "hobbies" #'listp)))))
-                 '(("name" . "Eitaro Fukamachi")
-                   ("email" . ("e.arrows@gmail.com" "another@gmail.com"))
-                   ("friends" . ((("name" . "Masatoshi Sano")
-                                  ("family" . ())
-                                  ("hobbies" . ("rocket" "lisp")))))))
-                '(("name" . "Eitaro Fukamachi")
-                  ("email" "e.arrows@gmail.com" "another@gmail.com")
-                  ("friends"
-                   (("name" . "Masatoshi Sano") ("family") ("hobbies" "rocket" "lisp"))))))))
-
-(deftest initargs-of-testing
-  (testing "initargs-of"
-    (defclass person ()
-      ((name :initarg :name)
-       (email :initarg :email)))
-
-    (ok (signals (initargs-of 1)))
-    (ok (signals (initargs-of 'integer)))
-    (ok (equalp (initargs-of 'person) '("name" "email")))))
+    (ok (equalp (multiple-value-list
+                 (funcall
+                  (alist
+                   (requires "name")
+                   (satisfies "email" #'listp)
+                   (satisfies "friends"
+                              (list-of
+                               (alist
+                                (requires "name")
+                                (satisfies "family" (list-of
+                                                     (alist (permits "name"))))
+                                (satisfies "hobbies" #'listp)))))
+                  '(("name" . "Eitaro Fukamachi")
+                    ("email" . ("e.arrows@gmail.com" "another@gmail.com"))
+                    ("friends" . ((("name" . "Masatoshi Sano")
+                                   ("family" . ())
+                                   ("hobbies" . ("rocket" "lisp"))))))))
+                '(t (("name" . "Eitaro Fukamachi")
+                     ("email" "e.arrows@gmail.com" "another@gmail.com")
+                     ("friends"
+                      (("name" . "Masatoshi Sano") ("family") ("hobbies" "rocket" "lisp")))))))))
