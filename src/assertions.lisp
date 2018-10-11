@@ -114,7 +114,9 @@
     `(lambda (,params)
        (block nil
          (unless (and (listp ,params)
-                      (every #'consp ,params))
+                      (handler-case
+                          (every #'consp ,params)
+                        (type-error () nil)))
            (with-continuable
              (error 'assertion-failed)))
          (let ((*params* ,params)
