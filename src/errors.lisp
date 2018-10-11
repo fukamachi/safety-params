@@ -12,7 +12,9 @@
            #:not-satisfied-key
            #:missing-keys
            #:invalid-keys
-           #:unpermitted-keys))
+           #:unpermitted-keys
+           #:with-continuable
+           #:ignore-and-continue))
 (in-package #:safety-params/errors)
 
 (define-condition safety-params-error (error) ())
@@ -69,3 +71,8 @@
              (with-slots (missing invalid unpermitted) condition
                (format stream "Validation errors:~@[~%  Missing: ~{~A~^, ~}~]~@[~%  Invalid: ~{~A~^, ~}~]~@[~%  Unpermitted: ~{~A~^, ~}~]"
                        missing invalid unpermitted)))))
+
+(defmacro with-continuable (&body body)
+  `(restart-case (progn ,@body)
+     (ignore-and-continue ()
+       :report "Ignore and continue.")))

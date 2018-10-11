@@ -22,24 +22,34 @@
 (defun list-of (pred)
   (check-type pred (or function symbol conversion))
   (lambda (param)
-    (unless (typep param 'list)
-      (error 'assertion-failed))
-    (values
-     t
-     (typecase pred
-       (conversion
-        (handler-case
-            (loop for value in param
-                  collect (funcall (conversion-fn pred) value))
-          (type-error ()
-            (error 'assertion-failed))))
-       (otherwise
-        (let ((not-satisfied (handler-case (remove-if pred param)
-                               (type-error ()
-                                 (error 'assertion-failed)))))
-          (when not-satisfied
-            (error 'assertion-failed)))
-        param)))))
+    (block nil
+      (unless (typep param 'list)
+        (with-continuable
+          (error 'assertion-failed)))
+      (values
+       t
+       (typecase pred
+         (conversion
+          (loop with results
+                for value in param
+                do (with-continuable
+                     (handler-case (push (funcall (conversion-fn pred) value) results)
+                       (type-error ()
+                         (error 'assertion-failed))))
+                finally (return (nreverse results))))
+         (otherwise
+          (let ((satisfied (remove-if-not
+                            (lambda (param)
+                              (with-continuable
+                                (handler-case
+                                    (funcall pred param)
+                                  (type-error ()
+                                    (error 'assertion-failed)))))
+                            param)))
+            (unless (equalp param satisfied)
+              (with-continuable
+                (error 'assertion-failed)))
+            satisfied)))))))
 
 (defvar *params*)
 
@@ -97,39 +107,44 @@
 (defmacro alist (&rest preds)
   (with-gensyms (params key keys pred missing invalid unpermitted e)
     `(lambda (,params)
-       (unless (and (listp ,params)
-                    (every #'consp ,params))
-         (error 'assertion-failed))
-       (let ((*params* ,params)
-             ,missing ,invalid ,unpermitted)
-         (flet ((satisfies (,key ,pred)
-                  (%satisfies ,key ,pred))
-                (requires (&rest ,keys)
-                  (apply #'%requires ,keys))
-                (permits (&rest ,keys)
-                  (apply #'%permits ,keys)))
-           (handler-bind ((unpermitted-keys
-                            (lambda (,e)
-                              (nconcf ,unpermitted
-                                      (unpermitted-keys-keys ,e))
-                              (invoke-continue ,e)))
-                          (missing-required-keys
-                            (lambda (,e)
-                              (nconcf ,missing
-                                      (missing-required-keys-keys ,e))
-                              (invoke-continue ,e)))
-                          (not-satisfied-key
-                            (lambda (,e)
-                              (pushnew (not-satisfied-key-key ,e) ,invalid)
-                              (invoke-continue ,e))))
-             (restart-case (progn ,@preds)
-               (ignore-and-continue ()
-                 :report "Ignore and continue." )))
-           (when (or ,unpermitted
-                     ,missing
-                     ,invalid)
-             (error 'validation-error
-                    :missing ,missing
-                    :invalid ,invalid
-                    :unpermitted ,unpermitted))
-           (values t *params*))))))
+       (block nil
+         (unless (and (listp ,params)
+                      (every #'consp ,params))
+           (restart-case
+               (error 'assertion-failed)
+             (ignore-and-continue ()
+               :report "Ignore and continue."
+               (return (values nil nil)))))
+         (let ((*params* ,params)
+               ,missing ,invalid ,unpermitted)
+           (flet ((satisfies (,key ,pred)
+                    (%satisfies ,key ,pred))
+                  (requires (&rest ,keys)
+                    (apply #'%requires ,keys))
+                  (permits (&rest ,keys)
+                    (apply #'%permits ,keys)))
+             (handler-bind ((unpermitted-keys
+                              (lambda (,e)
+                                (nconcf ,unpermitted
+                                        (unpermitted-keys-keys ,e))
+                                (invoke-continue ,e)))
+                            (missing-required-keys
+                              (lambda (,e)
+                                (nconcf ,missing
+                                        (missing-required-keys-keys ,e))
+                                (invoke-continue ,e)))
+                            (not-satisfied-key
+                              (lambda (,e)
+                                (pushnew (not-satisfied-key-key ,e) ,invalid)
+                                (invoke-continue ,e))))
+               (restart-case (progn ,@preds)
+                 (ignore-and-continue ()
+                   :report "Ignore and continue.")))
+             (when (or ,unpermitted
+                       ,missing
+                       ,invalid)
+               (error 'validation-error
+                      :missing ,missing
+                      :invalid ,invalid
+                      :unpermitted ,unpermitted))
+             (values t *params*)))))))
