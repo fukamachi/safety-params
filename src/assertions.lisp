@@ -67,9 +67,10 @@
              ((conversion-default pred)
               (push (cons key (conversion-default pred)) *params*)))
          (conversion-failed ()
-           (error 'not-satisfied-key
-                  :key key
-                  :pred pred))))
+           (with-continuable
+             (error 'not-satisfied-key
+                    :key key
+                    :pred pred)))))
       (otherwise
        (when val
          (multiple-value-call
@@ -78,9 +79,10 @@
                    (progn
                      (rplacd val new-val)
                      (values t new-val))
-                   (error 'not-satisfied-key
-                          :key key
-                          :pred pred)))
+                   (with-continuable
+                     (error 'not-satisfied-key
+                            :key key
+                            :pred pred))))
            (funcall pred (cdr val))))))))
 
 (defun %requires (&rest keys)
@@ -103,7 +105,7 @@
     t))
 
 (defun invoke-continue (e)
-  (let ((restart (find-restart 'ignore-and-continue e)))
+  (let ((restart (find-restart 'collect-validation-errors e)))
     (when restart
       (invoke-restart restart))))
 
@@ -113,19 +115,22 @@
        (block nil
          (unless (and (listp ,params)
                       (every #'consp ,params))
-           (restart-case
-               (error 'assertion-failed)
-             (ignore-and-continue ()
-               :report "Ignore and continue."
-               (return (values nil nil)))))
+           (with-continuable
+             (error 'assertion-failed)))
          (let ((*params* ,params)
                ,missing ,invalid ,unpermitted)
            (flet ((satisfies (,key ,pred)
-                    (%satisfies ,key ,pred))
+                    (restart-case
+                        (%satisfies ,key ,pred)
+                      (collect-validation-errors ())))
                   (requires (&rest ,keys)
-                    (apply #'%requires ,keys))
+                    (restart-case
+                        (apply #'%requires ,keys)
+                      (collect-validation-errors ())))
                   (permits (&rest ,keys)
-                    (apply #'%permits ,keys)))
+                    (restart-case
+                        (apply #'%permits ,keys)
+                      (collect-validation-errors ()))))
              (handler-bind ((unpermitted-keys
                               (lambda (,e)
                                 (nconcf ,unpermitted
@@ -140,14 +145,22 @@
                               (lambda (,e)
                                 (pushnew (not-satisfied-key-key ,e) ,invalid)
                                 (invoke-continue ,e))))
-               (restart-case (progn ,@preds)
-                 (ignore-and-continue ()
-                   :report "Ignore and continue.")))
-             (when (or ,unpermitted
-                       ,missing
-                       ,invalid)
-               (error 'validation-error
-                      :missing ,missing
-                      :invalid ,invalid
-                      :unpermitted ,unpermitted))
-             (values t *params*)))))))
+               ,@preds)
+             (cond
+               ((or ,unpermitted
+                    ,missing)
+                (error 'validation-error
+                       :missing ,missing
+                       :invalid ,invalid
+                       :unpermitted ,unpermitted))
+               (,invalid
+                (with-continuable
+                  (error 'validation-error
+                         :invalid ,invalid))
+                (values t
+                        (remove-if (lambda (,key)
+                                     (find ,key ,invalid :test 'equal))
+                                   *params*
+                                   :key #'car)))
+               (t
+                (values t *params*)))))))))
