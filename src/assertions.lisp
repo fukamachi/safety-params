@@ -38,14 +38,17 @@
                          (error 'assertion-failed))))
                 finally (return (nreverse results))))
          (otherwise
-          (let ((satisfied (remove-if-not
-                            (lambda (param)
-                              (with-continuable
-                                (handler-case
-                                    (funcall pred param)
-                                  (type-error ()
-                                    (error 'assertion-failed)))))
-                            param)))
+          (let ((satisfied (handler-case
+                               (remove-if-not
+                                (lambda (param)
+                                  (with-continuable
+                                    (handler-case
+                                        (funcall pred param)
+                                      (type-error ()
+                                        (error 'assertion-failed)))))
+                                param)
+                             (type-error ()
+                               (error 'assertion-failed)))))
             (unless (equalp param satisfied)
               (with-continuable
                 (error 'assertion-failed)))
