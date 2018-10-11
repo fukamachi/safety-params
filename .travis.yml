@@ -21,10 +21,6 @@ env:
     - LISP=allegro
     - LISP=cmucl
 
-matrix:
-  allow_failures:
-    - env: LISP=ecl
-
 install:
   # Install Roswell
   - curl -L https://raw.githubusercontent.com/snmsts/roswell/release/scripts/install-for-ci.sh | sh
