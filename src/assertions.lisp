@@ -150,19 +150,20 @@
                                 (invoke-continue ,e))))
                ,@preds)
              (cond
-               ((or ,unpermitted
-                    ,missing)
+               (,missing
                 (error 'validation-error
                        :missing ,missing
                        :invalid ,invalid
                        :unpermitted ,unpermitted))
-               (,invalid
+               ((or ,unpermitted ,invalid)
                 (with-continuable
                   (error 'validation-error
+                         :unpermitted ,unpermitted
                          :invalid ,invalid))
-                (values t
+                (values nil
                         (remove-if (lambda (,key)
-                                     (find ,key ,invalid :test 'equal))
+                                     (or (find ,key ,invalid :test 'equal)
+                                         (find ,key ,unpermitted :test 'equal)))
                                    *params*
                                    :key #'car)))
                (t
