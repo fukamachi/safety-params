@@ -122,6 +122,7 @@
          (let ((*params* ,params)
                ,missing ,invalid ,unpermitted)
            (flet ((satisfies (,key ,pred)
+                    #+sbcl (declare (sb-ext:muffle-conditions sb-ext:code-deletion-note))
                     (restart-case
                         (%satisfies ,key ,pred)
                       (collect-validation-errors ())))
