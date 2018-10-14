@@ -43,12 +43,19 @@
     (t
      (call-next-method))))
 
-(defstruct (conversion (:constructor make-conversion (fn &optional default)))
+(defstruct (conversion (:constructor make-conversion (name fn &optional default)))
+  name
   fn
   default)
 
+(defmethod print-object ((conversion conversion) stream)
+  (print-unreadable-object (conversion stream :identity t)
+    (format stream "CONVERSION to ~A"
+            (conversion-name conversion))))
+
 (defun being* (type default)
   (make-conversion
+   type
    (lambda (param)
      (let ((value (converts-into param (ensure-car type))))
        (unless (typep value type)
