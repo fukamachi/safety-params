@@ -1,5 +1,5 @@
 (defsystem "safety-params"
-  :version "0.2.0"
+  :version "0.3.0"
   :author "Eitaro Fukamachi"
   :license "BSD 2-Clause"
   :depends-on ("parse-number"
