@@ -1,8 +1,6 @@
 (defpackage #:safety-params/errors
   (:use #:cl)
   (:export #:safety-params-error
-           #:ignorable-error
-           #:dangerous-error
            #:conversion-failed
            #:assertion-failed
            #:invalid-input
@@ -19,35 +17,38 @@
 
 (define-condition safety-params-error (error) ())
 
-(define-condition ignorable-error (safety-params-error) ())
-(define-condition dangerous-error (safety-params-error) ())
-
-(define-condition conversion-failed (ignorable-error)
+(define-condition conversion-failed (safety-params-error)
   ((value :initarg :value)
    (expected :initarg :expected)))
 
-(define-condition assertion-failed (ignorable-error) ())
+(define-condition assertion-failed (safety-params-error)
+  ((value :initarg :value)
+   (test :initarg :test))
+  (:report (lambda (condition stream)
+             (with-slots (value test) condition
+               (format stream "Assertion ~S for ~S failed"
+                       test value)))))
 
-(define-condition invalid-input (ignorable-error)
+(define-condition invalid-input (assertion-failed)
   ((value :initarg :value))
   (:report (lambda (condition stream)
              (format stream "Invalid input: ~S" (slot-value condition 'value)))))
 
-(define-condition unpermitted-keys (dangerous-error)
+(define-condition unpermitted-keys (safety-params-error)
   ((keys :initarg :keys
          :accessor unpermitted-keys-keys))
   (:report (lambda (condition stream)
              (format stream "Unpermitted keys: ~{~S~^, ~}"
                      (slot-value condition 'keys)))))
 
-(define-condition missing-required-keys (dangerous-error)
+(define-condition missing-required-keys (safety-params-error)
   ((keys :initarg :keys
          :accessor missing-required-keys-keys))
   (:report (lambda (condition stream)
              (format stream "Required keys are missing: ~{~S~^, ~}"
                      (slot-value condition 'keys)))))
 
-(define-condition not-satisfied-key (ignorable-error)
+(define-condition not-satisfied-key (safety-params-error)
   ((key :initarg :key
         :accessor not-satisfied-key-key)
    (pred :initarg :pred
@@ -55,9 +56,9 @@
   (:report (lambda (condition stream)
              (with-slots (key pred) condition
                (format stream "Key '~A' doesn't satisfy ~A"
-                       key pref)))))
+                       key pred)))))
 
-(define-condition validation-error (dangerous-error)
+(define-condition validation-error (safety-params-error)
   ((missing :initarg :missing
             :initform '()
             :accessor missing-keys)

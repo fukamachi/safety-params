@@ -25,7 +25,7 @@
     (block nil
       (unless (typep param 'list)
         (with-continuable
-          (error 'assertion-failed)))
+          (error 'invalid-input :value param)))
       (values
        t
        (typecase pred
@@ -35,7 +35,7 @@
                 do (with-continuable
                      (handler-case (push (funcall (conversion-fn pred) value) results)
                        (type-error ()
-                         (error 'assertion-failed))))
+                         (error 'invalid-input :value param))))
                 finally (return (nreverse results))))
          (otherwise
           (let ((satisfied (handler-case
@@ -45,13 +45,15 @@
                                     (handler-case
                                         (funcall pred param)
                                       (type-error ()
-                                        (error 'assertion-failed)))))
+                                        (error 'invalid-input :value param)))))
                                 param)
                              (type-error ()
-                               (error 'assertion-failed)))))
+                               (error 'invalid-input :value param)))))
             (unless (equalp param satisfied)
               (with-continuable
-                (error 'assertion-failed)))
+                (error 'assertion-failed
+                       :test pred
+                       :value param)))
             satisfied)))))))
 
 (defvar *params*)
@@ -116,9 +118,11 @@
          (unless (and (listp ,params)
                       (handler-case
                           (every #'consp ,params)
-                        (type-error () nil)))
+                        (type-error ()
+                          (with-continuable
+                            (error 'invalid-input :value ,params)))))
            (with-continuable
-             (error 'assertion-failed)))
+             (error 'invalid-input :value ,params)))
          (let ((*params* ,params)
                ,missing ,invalid ,unpermitted)
            (flet ((satisfies (,key ,pred)
