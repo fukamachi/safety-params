@@ -8,13 +8,13 @@ Safety-Params is for checking values.
 
 ## Upgrading Notes to v0.3.0
 
-This library is used to be called "Sanitized-Params" which is designed to sanitize, which means it doesn't raise any errors if the specified condition is failed and omits the key-values.
+This library is used to be called "Sanitized-Params" which is designed to sanitize, which means it doesn't raise any errors and just omits key-values even when the specified condition has failed.
 
-However, I noticed that it is used mainly for validating values. That made me decide to revise its APIs and give 2 macros, `sanitize` and `validate`.
+However, it has been commonly used mainly for validating values. That made me decide to revise its APIs and give 2 macros, `sanitize` and `validate`.
 
 Additionally, I found that value-conversions are often following after a validation. For instance, a code expecting an integer but its input could be a string.
 
-Since v0.3.0, the value-conversions features is added:
+Since v0.3.0, the value-conversions features were added:
 
 ```common-lisp
 (validate
