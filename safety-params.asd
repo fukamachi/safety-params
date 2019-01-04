@@ -11,7 +11,9 @@
                                             "errors"))
                  (:file "conversions" :depends-on ("errors"))
                  (:file "assertions" :depends-on ("errors"))
-                 (:file "errors"))))
+                 (:file "messages" :depends-on ("assertions"))
+                 (:file "errors" :depends-on ("utils"))
+                 (:file "utils"))))
   :description "Filter parameters"
   :in-order-to ((test-op (test-op "safety-params/tests"))))
 

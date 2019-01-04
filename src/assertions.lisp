@@ -4,6 +4,7 @@
   (:import-from #:safety-params/errors
                 #:unpermitted-keys-keys
                 #:not-satisfied-key-key
+                #:not-satisfied-key-message
                 #:missing-required-keys-keys)
   (:import-from #:safety-params/conversions
                 #:conversion
@@ -58,7 +59,7 @@
 
 (defvar *params*)
 
-(defun %satisfies (key pred)
+(defun %satisfies (key pred &key message)
   (let ((val (assoc key *params* :test #'equal)))
     (typecase pred
       (conversion
@@ -72,7 +73,8 @@
            (with-continuable
              (error 'not-satisfied-key
                     :key key
-                    :pred pred)))))
+                    :pred pred
+                    :message message)))))
       (otherwise
        (when val
          (multiple-value-call
@@ -84,7 +86,8 @@
                    (with-continuable
                      (error 'not-satisfied-key
                             :key key
-                            :pred pred))))
+                            :pred pred
+                            :message message))))
            (funcall pred (cdr val))))))))
 
 (defun %requires (&rest keys)
@@ -112,7 +115,7 @@
       (invoke-restart restart))))
 
 (defmacro alist (&rest preds)
-  (with-gensyms (params key keys pred missing invalid unpermitted e)
+  (with-gensyms (params key keys pred missing invalid unpermitted e satisfies-args)
     `(lambda (,params)
        (block nil
          (unless (and (listp ,params)
@@ -125,10 +128,10 @@
              (error 'invalid-input :value ,params)))
          (let ((*params* ,params)
                ,missing ,invalid ,unpermitted)
-           (flet ((satisfies (,key ,pred)
+           (flet ((satisfies (,key ,pred &rest ,satisfies-args)
                     #+sbcl (declare (sb-ext:muffle-conditions sb-ext:code-deletion-note))
                     (restart-case
-                        (%satisfies ,key ,pred)
+                        (apply #'%satisfies ,key ,pred ,satisfies-args)
                       (collect-validation-errors ())))
                   (requires (&rest ,keys)
                     (restart-case
@@ -150,7 +153,8 @@
                                 (invoke-continue ,e)))
                             (not-satisfied-key
                               (lambda (,e)
-                                (pushnew (not-satisfied-key-key ,e) ,invalid)
+                                (pushnew (cons (not-satisfied-key-key ,e)
+                                               (not-satisfied-key-message ,e)) ,invalid)
                                 (invoke-continue ,e))))
                ,@preds)
              (cond

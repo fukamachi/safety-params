@@ -101,6 +101,29 @@ Since v0.3.0, the value-conversions features were added:
 ;=> (1 2 3 4)
 ```
 
+### Custom error message
+
+Safety-params provides `(setf validation-message)` function to set a custom error message which will be shown when the validation has failed.
+
+```common-lisp
+(setf (validation-message 'zero-string-p)
+      "Must be zero in string")
+```
+
+It also allows to set with `satisfies` by specifying an optional `:message` argument.
+
+```common-lisp
+(validate
+ (alist
+  (satisfies "amount" #'zero-string-p
+             :message "Must be zero in string"))
+ '(("amount" . "-2")))
+;-> Validation errors:
+;     Invalid:
+;       - amount (Must be zero in string)
+;    [Condition of type VALIDATION-ERROR]
+```
+
 ### Sanitizing values
 
 ```common-lisp

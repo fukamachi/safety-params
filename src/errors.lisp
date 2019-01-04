@@ -1,6 +1,8 @@
 (defpackage #:safety-params/errors
-  (:use #:cl)
-  (:export #:safety-params-error
+  (:use #:cl
+        #:safety-params/utils)
+  (:export #:validation-message
+           #:safety-params-error
            #:conversion-failed
            #:assertion-failed
            #:invalid-input
@@ -14,6 +16,20 @@
            #:with-continuable
            #:ignore-and-continue))
 (in-package #:safety-params/errors)
+
+(defvar *validation-message* (make-hash-table))
+
+(defun validation-message (pred)
+  (let ((pred (etypecase pred
+                (symbol (symbol-function pred))
+                (function pred))))
+    (gethash pred *validation-message*)))
+
+(defun (setf validation-message) (message pred)
+  (let ((pred (etypecase pred
+                (symbol (symbol-function pred))
+                (function pred))))
+    (setf (gethash pred *validation-message*) message)))
 
 (define-condition safety-params-error (error) ())
 
@@ -50,13 +66,20 @@
 
 (define-condition not-satisfied-key (safety-params-error)
   ((key :initarg :key
-        :accessor not-satisfied-key-key)
+        :reader not-satisfied-key-key)
    (pred :initarg :pred
-         :accessor not-satisfied-key-pred))
+         :reader not-satisfied-key-pred)
+   (message :initarg :message
+            :initform nil))
   (:report (lambda (condition stream)
-             (with-slots (key pred) condition
-               (format stream "Key '~A' doesn't satisfy ~A"
-                       key pred)))))
+             (princ (not-satisfied-key-message condition) stream))))
+
+(defun not-satisfied-key-message (error)
+  (describe error)
+  (or (slot-value error 'message)
+      (and (lambda-function-p (not-satisfied-key-pred error))
+           (documentation (not-satisfied-key-pred error) 'function))
+      (validation-message (not-satisfied-key-pred error))))
 
 (define-condition validation-error (safety-params-error)
   ((missing :initarg :missing
@@ -70,8 +93,15 @@
                 :accessor unpermitted-keys))
   (:report (lambda (condition stream)
              (with-slots (missing invalid unpermitted) condition
-               (format stream "Validation errors:~@[~%  Missing: ~{~A~^, ~}~]~@[~%  Invalid: ~{~A~^, ~}~]~@[~%  Unpermitted: ~{~A~^, ~}~]"
-                       missing invalid unpermitted)))))
+               (format stream "Validation errors:")
+               (when missing
+                 (format stream "~%  Missing: ~{~A~^, ~}" missing))
+               (when unpermitted
+                 (format stream "~%  Unpermitted: ~{~A~^, ~}" unpermitted))
+               (when invalid
+                 (format stream "~%  Invalid:")
+                 (loop for (key . message) in invalid
+                       do (format stream "~%    - ~A~@[ (~A)~]" key message)))))))
 
 (defmacro with-continuable (&body body)
   `(restart-case (progn ,@body)
