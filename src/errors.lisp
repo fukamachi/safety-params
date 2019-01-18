@@ -75,7 +75,6 @@
              (princ (not-satisfied-key-message condition) stream))))
 
 (defun not-satisfied-key-message (error)
-  (describe error)
   (or (slot-value error 'message)
       (and (lambda-function-p (not-satisfied-key-pred error))
            (documentation (not-satisfied-key-pred error) 'function))
